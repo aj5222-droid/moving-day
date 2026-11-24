@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moving Day: why doubling works</title>
+<meta name="description" content="An interactive 3D game about amortized analysis. Fill a building with boxes, move house when it is full, and find out why doubling the size makes appends cheap.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-mode="play">
+
+<div id="stageWrap">
+  <canvas id="gl" tabindex="0" role="img" aria-label="3D model of the buildings. Drag to orbit, scroll to zoom. With the canvas focused, arrow keys orbit and plus or minus zoom." aria-describedby="sr"></canvas>
+  <p id="sr" class="sr" aria-live="off"></p>
+  <div id="tags"></div>
+  <div id="safe"></div>
+</div>
+
+<header class="top">
+  <div class="brand"><b>Moving Day</b><span>why doubling works</span></div>
+  <nav class="tabs" role="tablist" aria-label="Mode">
+    <button role="tab" id="tab-play" data-mode="play" aria-selected="true">Play</button>
+    <button role="tab" id="tab-race" data-mode="race" aria-selected="false">Race</button>
+    <button role="tab" id="tab-challenge" data-mode="challenge" aria-selected="false">Challenge</button>
+    <button role="tab" id="tab-why" data-mode="why" aria-selected="false" aria-label="Why it works">Why<span class="lg"> it works</span></button>
+  </nav>
+  <div class="tools">
+    <button class="ghost" id="helpBtn">How it works</button>
+    <button class="ghost" id="soundBtn" aria-pressed="false">Sound off</button>
+  </div>
+</header>
+
+<main class="ui">
+
+  <!-- left column: controls -->
+  <section id="left" class="card">
+
+    <div class="blk" data-m="play">
+      <h2>Pick a plan</h2>
+      <p class="lede">The building is full. How many rooms should the next one have?</p>
+      <div id="tiles" class="tiles" role="group" aria-label="Growth plan"></div>
+      <div class="row">
+        <button id="addBtn" class="primary">Add a box <kbd>Space</kbd></button>
+        <button id="add10Btn">Add 10</button>
+      </div>
+      <div class="row auto">
+        <button id="autoBtn" aria-pressed="false">Auto</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <div class="row speed">
+        <div class="seg" id="speedSeg" role="group" aria-label="Auto speed">
+          <button data-speed="watch" aria-pressed="true">Watch</button>
+          <button data-speed="fast" aria-pressed="false">Fast</button>
+          <button data-speed="skip" aria-pressed="false">Skip ahead</button>
+        </div>
+      </div>
+      <div id="insight" class="insight" aria-live="polite"><h3></h3><p></p></div>
+    </div>
+
+    <div class="blk" data-m="race">
+      <h2>Race three plans</h2>
+      <p class="lede">Same boxes, same prices. Time is money here: a plan that spends less finishes first.</p>
+      <div id="raceChips" class="chips" role="group" aria-label="Choose three plans"></div>
+      <label class="slider"><span>Boxes to store</span><output id="nVal">64</output>
+        <input id="nRange" type="range" min="16" max="128" step="8" value="64"></label>
+      <div class="row">
+        <button id="racePlay" class="primary">Start race</button>
+        <button id="raceRestart" class="ghost">Restart</button>
+      </div>
+      <div class="seg wide" id="raceSpeed" role="group" aria-label="Race speed">
+        <button data-speed="1" aria-pressed="true">1x</button>
+        <button data-speed="2" aria-pressed="false">2x</button>
+        <button data-speed="4" aria-pressed="false">4x</button>
+      </div>
+      <p class="hint">One dollar of cost takes a fixed slice of time. When the cheapest plan finishes, the rest fast-forward. Drag the timeline under the chart to scrub.</p>
+    </div>
+
+    <div class="blk" data-m="challenge">
+      <h2>Challenge</h2>
+      <div id="lvTabs" class="lvtabs" role="group" aria-label="Level"></div>
+      <h3 id="lvTitle"></h3>
+      <p id="lvBrief" class="lede"></p>
+      <div id="lvOptions" class="tiles" role="group" aria-label="Choose a plan"></div>
+      <div id="dial" class="dial">
+        <label class="slider"><span>Growth factor</span><output id="fVal">x2.0</output>
+          <input id="fRange" type="range" min="1.1" max="4" step="0.05" value="1.5"></label>
+        <div class="track" id="fTrack"><i></i></div>
+        <div class="gauges">
+          <div class="gauge" id="gAvg"><span>Worst average cost</span><b>$0.00</b><div><i></i><u></u></div><em>limit $3.30</em></div>
+          <div class="gauge" id="gVac"><span>Most rooms empty</span><b>0%</b><div><i></i><u></u></div><em>limit 55%</em></div>
+        </div>
+      </div>
+      <div class="row">
+        <button id="runBtn" class="primary">Run it</button>
+        <button id="skipBtn" class="ghost">Skip animation</button>
+      </div>
+    </div>
+
+    <div class="blk" data-m="why">
+      <h2>Why it works</h2>
+      <p class="lede">Three short steps that turn the game into a proof. Each one is interactive.</p>
+      <div id="whySteps" class="wsteps" role="tablist" aria-label="Steps">
+        <button role="tab" data-s="1" aria-selected="true"><b>1</b><span>Add up the moves</span></button>
+        <button role="tab" data-s="2" aria-selected="false"><b>2</b><span>Charge a flat fee</span></button>
+        <button role="tab" data-s="3" aria-selected="false"><b>3</b><span>Real languages</span></button>
+      </div>
+      <p class="hint">The model is simplified on purpose: allocating a building is free, copying one box costs $1, and the array only grows.</p>
+    </div>
+
+  </section>
+
+  <!-- centre: caption under the stage -->
+  <p id="caption" class="caption" aria-live="polite"></p>
+
+  <!-- right column: receipts -->
+  <aside id="right">
+
+    <div class="receipt blk" data-m="play">
+      <div class="rhead"><b>MOVING CO.</b><span>itemised receipt</span></div>
+      <ul id="rcLines" class="lines"></ul>
+      <dl class="tot">
+        <div><dt>Boxes stored</dt><dd id="rcBoxes">0</dd></div>
+        <div><dt>Boxes moved</dt><dd id="rcMoved">0</dd></div>
+        <div><dt>Total paid</dt><dd id="rcTotal">$0</dd></div>
+      </dl>
+      <div class="avg"><span>Average per add</span><b id="rcAvg">$0.00</b></div>
+      <div class="vac"><span>Empty rooms (wasted memory)</span><div class="bar"><i id="rcVacBar"></i></div><em id="rcVac">0 of 1</em></div>
+    </div>
+
+    <div class="receipt blk" data-m="race">
+      <div class="rhead"><b>MOVING CO.</b><span>three quotes</span></div>
+      <div id="raceRows" class="raceRows"></div>
+      <div id="raceResult" class="result" aria-live="polite"></div>
+    </div>
+
+    <div class="receipt blk" data-m="challenge">
+      <div class="rhead"><b>MOVING CO.</b><span id="chHead">budget</span></div>
+      <div class="budget"><span id="chLabel">Spent</span><b id="chSpent">$0</b><em id="chOf">of $300</em></div>
+      <div class="bar big"><i id="chBar"></i></div>
+      <div class="chmeta"><span id="chBoxes">0 of 100 boxes</span></div>
+      <div id="chStamp" class="stamp" aria-live="polite"></div>
+      <p id="chWhy" class="why"></p>
+    </div>
+
+  </aside>
+
+  <!-- bottom: chart -->
+  <section id="bottom" class="card chartcard">
+    <div class="chead"><h3 id="chartTitle">Cost of each add</h3><div id="legend" class="legend"></div></div>
+    <canvas id="chart"></canvas>
+    <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Race timeline">
+  </section>
+
+  <!-- why it works -->
+  <section id="why" class="card whyCard" aria-live="polite">
+
+    <div class="wpane" data-s="1">
+      <h2>The moves add up to less than 2n</h2>
+      <p class="lede">Doubling means the moves cost 1, 2, 4, 8 and so on. Drag the slider and watch the pieces stack up. They always fit inside a bar of length 2n.</p>
+      <label class="slider"><span>Boxes stored (n)</span><output id="w1n">40</output>
+        <input id="w1range" type="range" min="2" max="128" step="1" value="40"></label>
+      <canvas id="w1" class="wcanvas"></canvas>
+      <p id="w1read" class="wread"></p>
+      <p class="wnote">Each move copies a whole building, and each building is twice the last. Any sum like 1 + 2 + 4 + ... + m is smaller than 2m, and the last move is smaller than n. So all the moves together copy fewer than 2n boxes. Add the n boxes you placed and the total is under 3n. That is about $3 per add, however many adds you do. This is what amortized O(1) means.</p>
+    </div>
+
+    <div class="wpane" data-s="2">
+      <h2>A flat fee that never runs out</h2>
+      <p class="lede">Charge the customer a fixed fee for every add and keep the extra in a jar. The jar pays for the moves. Can you pick a fee that never lets the jar go negative?</p>
+      <div id="w2chips" class="chips"></div>
+      <div class="wrow">
+        <label class="slider"><span>Flat fee per add</span><output id="w2feeV">$3.00</output>
+          <input id="w2fee" type="range" min="1" max="12" step="0.25" value="3"></label>
+        <label class="slider"><span>Number of adds</span><output id="w2nV">200</output>
+          <input id="w2n" type="range" min="50" max="400" step="10" value="200"></label>
+      </div>
+      <canvas id="w2" class="wcanvas"></canvas>
+      <p id="w2read" class="wread"></p>
+      <p id="w2note" class="wnote"></p>
+    </div>
+
+    <div class="wpane" data-s="3">
+      <h2>What real languages pick</h2>
+      <p class="lede">Every constant factor above 1 is amortized O(1). The factor only decides the constant: a small factor wastes little memory but moves often, a big one moves rarely but wastes space.</p>
+      <table id="langTable" class="lang">
+        <thead><tr><th>Implementation</th><th>Growth</th><th>Flat fee needed</th><th>Most empty</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="wnote">Growth factors are typical values and change between versions, so check the source of the version you use. The fee and emptiness columns come from this game's simplified model, run for 1,000 adds starting from one room. Go slices double until about 256 elements and then ease toward x1.25. Real vectors can also shrink, which needs its own rule (shrink at a quarter full, not half, or alternating add and remove would move forever).</p>
+    </div>
+
+  </section>
+
+</main>
+
+<div id="intro" class="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle">
+  <div class="sheet">
+    <p class="kicker">CS102 extra credit</p>
+    <h1 id="introTitle">Moving Day</h1>
+    <p>An array is a building. Each slot is a room. Adding a box is easy until the building is full.</p>
+    <p>Then you have to move <em>every</em> box into a bigger building, and each move costs money. So how big should the next building be?</p>
+    <p>Play with the plans, race them, try to beat the budget, then open <em>Why it works</em> for the proof. The idea behind it is amortized O(1) appends.</p>
+    <p class="small">Simplified model: allocating a building is free, copying one box costs $1, and the array only grows.</p>
+    <button id="startBtn" class="primary big">Start moving</button>
+  </div>
+</div>
+
+<div id="fallback" class="fallback" hidden>
+  <div class="sheet">
+    <h1>This needs WebGL 2</h1>
+    <p>Your browser could not start a WebGL 2 context. Try a current version of Chrome, Firefox, Safari or Edge, with hardware acceleration switched on.</p>
+  </div>
+</div>
+
+<script src="js/sim.js"></script>
+<script src="js/gl.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/why.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
